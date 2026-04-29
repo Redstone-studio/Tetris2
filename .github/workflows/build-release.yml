@@ -10,29 +10,29 @@ on:
 
 jobs:
   build:
-    # 尝试多个 Windows 版本，哪个快用哪个
-    runs-on: windows-latest
-    
-    # 添加超时限制，避免无限等待
-    timeout-minutes: 15
+    runs-on: ubuntu-latest  # 或 windows-latest 都行
+    timeout-minutes: 10
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Build Project
+    - uses: actions/checkout@v4
+    
+    # MinGW 编译（完全静态，支持所有 Windows）
+    - name: Build with MinGW
       run: |
-        msbuild ConsoleApplication8\ConsoleApplication8.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal
-
+        sudo apt-get update
+        sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+        
+        cd ConsoleApplication8
+        x86_64-w64-mingw32-g++ -std=c++11 ConsoleApplication8.cpp -o ConsoleApplication8.exe \
+          -static \
+          -O2 \
+          -s
+    
     - name: Upload Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.event.inputs.version }}
         name: Version ${{ github.event.inputs.version }}
-        files: ConsoleApplication8\x64\Release\ConsoleApplication8.exe
-        make_latest: true
+        files: ConsoleApplication8/ConsoleApplication8.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
