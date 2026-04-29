@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <thread>
 #include <vector>
+#include <chrono>
 
 #include <stdio.h>
 #include <windows.h>
@@ -118,7 +119,8 @@ int main()
 	{
 
 		//定时器===========
-		this_thread::sleep_for(50ms);
+		this_thread::sleep_for(chrono::milliseconds(50));
+		//原this_thread::sleep_for(50ms); ===
 		nSpeedCount++;
 		bForceDown = (nSpeedCount == nSpeed);
 
@@ -205,7 +207,8 @@ int main()
 		//消除一行，将用迭代方式逐行下沉
 		if (!vLines.empty()) {
 			WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
-			this_thread::sleep_for(400ms);
+			this_thread::sleep_for(chrono::milliseconds(400));
+			//原this_thread::sleep_for(400ms);===
 
 			for (auto& v : vLines)
 				for (int px = 1; px < nFieldWidth - 1; px++) {
