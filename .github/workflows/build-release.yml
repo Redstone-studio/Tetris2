@@ -16,22 +16,32 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # 安装 MinGW-w64
     - name: Install MinGW-w64
       run: |
         sudo apt-get update
         sudo apt-get install -y mingw-w64
     
-    # 修复头文件大小写问题
-    - name: Fix include case
+    - name: Fix source code
       run: |
         cd ConsoleApplication8
-        # 自动将 Windows.h 替换为 windows.h
-        sed -i 's/#include <Windows.h>/#include <windows.h>/g' ConsoleApplication8.cpp
-        # 验证修改
-        grep -n "#include <windows.h" ConsoleApplication8.cpp
+        
+        # 添加 chrono 头文件
+        if ! grep -q "#include <chrono>" ConsoleApplication8.cpp; then
+          sed -i '1i#include <chrono>' ConsoleApplication8.cpp
+        fi
+        
+        # 修改 sleep_for（支持两种写法）
+        sed -i 's/sleep_for(50ms)/sleep_for(chrono::milliseconds(50))/g' ConsoleApplication8.cpp
+        sed -i 's/sleep_for(400ms)/sleep_for(chrono::milliseconds(400))/g' ConsoleApplication8.cpp
+        sed -i 's/sleep_for(chrono::milliseconds(50ms))/sleep_for(chrono::milliseconds(50))/g' ConsoleApplication8.cpp
+        
+        # 修改 WriteConsoleOutputCharacter 为宽字符版本（最重要！）
+        sed -i 's/WriteConsoleOutputCharacter(/WriteConsoleOutputCharacterW(/g' ConsoleApplication8.cpp
+        
+        # 显示修改后的相关行，确认修改成功
+        echo "=== Checking modifications ==="
+        grep -n "WriteConsoleOutputCharacterW\|sleep_for" ConsoleApplication8.cpp | head -10
     
-    # 编译
     - name: Build Executable
       run: |
         cd ConsoleApplication8
@@ -40,11 +50,7 @@ jobs:
           -static-libgcc \
           -static-libstdc++ \
           -O2 \
-          -s \
-          -lwinmm \
-          -lgdi32
-        # -lwinmm: 链接 Windows 多媒体库（如果需要）
-        # -lgdi32: 链接图形设备接口库
+          -s
     
     - name: Upload Release
       uses: softprops/action-gh-release@v2
