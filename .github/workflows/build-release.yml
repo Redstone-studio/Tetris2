@@ -12,6 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write  # 关键：授予写入权限，用于创建 Release
 
     steps:
     - uses: actions/checkout@v4
@@ -24,33 +26,21 @@ jobs:
     - name: Fix source code
       run: |
         cd ConsoleApplication8
-        
         # 添加 chrono 头文件
         if ! grep -q "#include <chrono>" ConsoleApplication8.cpp; then
           sed -i '1i#include <chrono>' ConsoleApplication8.cpp
         fi
-        
-        # 修改 sleep_for（支持两种写法）
-        sed -i 's/sleep_for(50ms)/sleep_for(chrono::milliseconds(50))/g' ConsoleApplication8.cpp
-        sed -i 's/sleep_for(400ms)/sleep_for(chrono::milliseconds(400))/g' ConsoleApplication8.cpp
-        sed -i 's/sleep_for(chrono::milliseconds(50ms))/sleep_for(chrono::milliseconds(50))/g' ConsoleApplication8.cpp
-        
-        # 修改 WriteConsoleOutputCharacter 为宽字符版本（最重要！）
+        # 修改 sleep_for
+        sed -i 's/this_thread::sleep_for(50ms)/this_thread::sleep_for(chrono::milliseconds(50))/g' ConsoleApplication8.cpp
+        sed -i 's/this_thread::sleep_for(400ms)/this_thread::sleep_for(chrono::milliseconds(400))/g' ConsoleApplication8.cpp
+        # 修改 WriteConsoleOutputCharacter 为宽字符版本
         sed -i 's/WriteConsoleOutputCharacter(/WriteConsoleOutputCharacterW(/g' ConsoleApplication8.cpp
-        
-        # 显示修改后的相关行，确认修改成功
-        echo "=== Checking modifications ==="
-        grep -n "WriteConsoleOutputCharacterW\|sleep_for" ConsoleApplication8.cpp | head -10
     
     - name: Build Executable
       run: |
         cd ConsoleApplication8
         x86_64-w64-mingw32-g++ -std=c++11 ConsoleApplication8.cpp -o Tetris.exe \
-          -static \
-          -static-libgcc \
-          -static-libstdc++ \
-          -O2 \
-          -s
+          -static -static-libgcc -static-libstdc++ -O2 -s
     
     - name: Upload Release
       uses: softprops/action-gh-release@v2
