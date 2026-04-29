@@ -1,119 +1,38 @@
 name: Build and Release
 
 on:
-  # 手动触发
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号 (例如: 1.0, 1.1, 2.0)'
+        description: '版本号'
         required: true
         default: '1.0'
-        type: string
-      build_x64:
-        description: '构建 x64 版本'
-        required: false
-        default: true
-        type: boolean
-      build_x86:
-        description: '构建 x86 (Win32) 版本'
-        required: false
-        default: true
-        type: boolean
 
 jobs:
   build:
-    runs-on: windows-2019
+    # 尝试多个 Windows 版本，哪个快用哪个
+    runs-on: windows-latest
+    
+    # 添加超时限制，避免无限等待
+    timeout-minutes: 15
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Add MSBuild to PATH
+    - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    # 显示构建信息
-    - name: Build Information
+    - name: Build Project
       run: |
-        echo "Building version: ${{ github.event.inputs.version }}"
-        echo "Build x64: ${{ github.event.inputs.build_x64 }}"
-        echo "Build x86: ${{ github.event.inputs.build_x86 }}"
+        msbuild ConsoleApplication8\ConsoleApplication8.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal
 
-    # 构建 x64 版本
-    - name: Build x64 Release
-      if: github.event.inputs.build_x64 == 'true'
-      run: |
-        msbuild ConsoleApplication8\ConsoleApplication8.vcxproj `
-          /p:Configuration=Release `
-          /p:Platform=x64 `
-          /p:PlatformToolset=v141 `
-          /verbosity:minimal
-
-    # 构建 x86 (Win32) 版本
-    - name: Build Win32 Release
-      if: github.event.inputs.build_x86 == 'true'
-      run: |
-        msbuild ConsoleApplication8\ConsoleApplication8.vcxproj `
-          /p:Configuration=Release `
-          /p:Platform=Win32 `
-          /p:PlatformToolset=v141 `
-          /verbosity:minimal
-
-    # 查找并保存可执行文件
-    - name: Collect Artifacts
-      run: |
-        $version = "${{ github.event.inputs.version }}"
-        New-Item -ItemType Directory -Force -Path release
-        
-        # 收集 x64 版本
-        if ("${{ github.event.inputs.build_x64 }}" -eq "true") {
-          $x64_exe = Get-ChildItem -Recurse -Filter "ConsoleApplication8.exe" | 
-                     Where-Object { $_.DirectoryName -like "*x64*Release*" } | 
-                     Select-Object -First 1
-          if ($x64_exe) {
-            Copy-Item $x64_exe.FullName -Destination "release/ConsoleApplication8-x64-v$version.exe"
-            Write-Host "Found x64 executable at: $($x64_exe.FullName)"
-          } else {
-            # 尝试备用路径
-            $alt_exe = "ConsoleApplication8\x64\Release\ConsoleApplication8.exe"
-            if (Test-Path $alt_exe) {
-              Copy-Item $alt_exe -Destination "release/ConsoleApplication8-x64-v$version.exe"
-            }
-          }
-        }
-        
-        # 收集 x86 版本
-        if ("${{ github.event.inputs.build_x86 }}" -eq "true") {
-          $x86_exe = Get-ChildItem -Recurse -Filter "ConsoleApplication8.exe" | 
-                     Where-Object { $_.DirectoryName -like "*Win32*Release*" } | 
-                     Select-Object -First 1
-          if ($x86_exe) {
-            Copy-Item $x86_exe.FullName -Destination "release/ConsoleApplication8-x86-v$version.exe"
-            Write-Host "Found x86 executable at: $($x86_exe.FullName)"
-          } else {
-            # 尝试备用路径
-            $alt_exe = "ConsoleApplication8\Release\ConsoleApplication8.exe"
-            if (Test-Path $alt_exe) {
-              Copy-Item $alt_exe -Destination "release/ConsoleApplication8-x86-v$version.exe"
-            }
-          }
-        }
-
-    # 创建 Release 并上传
-    - name: Create Release and Upload Assets
-      uses: softprops/action-gh-release@v1
+    - name: Upload Release
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.event.inputs.version }}
         name: Version ${{ github.event.inputs.version }}
-        body: |
-          ## ConsoleApplication8 v${{ github.event.inputs.version }}
-          
-          手动触发的发布版本。
-          
-          ### 下载说明
-          - 选择对应的架构版本（x64 或 x86）
-          - 直接运行即可
-        files: release/*.exe
-        draft: false
-        prerelease: false
+        files: ConsoleApplication8\x64\Release\ConsoleApplication8.exe
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
