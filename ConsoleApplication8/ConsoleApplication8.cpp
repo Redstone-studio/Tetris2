@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <stdio.h>
-#include <Windows.h>
+#include <windows.h>
 using namespace std;
 
 // 定义屏幕
